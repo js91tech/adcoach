@@ -22,13 +22,12 @@ export function CampaignsView() {
             keep it as one thing you can understand.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void ask("Create a new ad for my business, $20 a day, people nearby")}
+        <Link
+          href="/create"
           className="rounded-xl bg-forest px-4 py-2 text-sm font-medium text-card"
         >
           New ad
-        </button>
+        </Link>
       </div>
 
       <ul className="mt-8 flex flex-col gap-4">
@@ -52,6 +51,14 @@ export function CampaignsView() {
                 </p>
               </div>
             </div>
+
+            {c.ad.imageUrl ? (
+              <img
+                src={c.ad.imageUrl}
+                alt=""
+                className="mt-5 h-44 w-full rounded-xl object-cover"
+              />
+            ) : null}
 
             {row ? (
               <div className="mt-5 grid gap-4 sm:grid-cols-2">

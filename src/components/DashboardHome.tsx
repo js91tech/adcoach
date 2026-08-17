@@ -66,7 +66,7 @@ export function DashboardHome() {
         {connection.status === "demo" ? (
           <p className="mt-3 text-sm text-ink-soft">
             Practice bakery account.{" "}
-            <Link href="/settings" className="text-forest underline-offset-2 hover:underline">
+            <Link href="/connect" className="text-forest underline-offset-2 hover:underline">
               Connect Facebook
             </Link>{" "}
             when you want this on a real ad account.
@@ -75,6 +75,12 @@ export function DashboardHome() {
       </section>
 
       <div className="mt-6 flex flex-wrap gap-2">
+        <Link
+          href="/create"
+          className="rounded-full bg-forest px-3 py-1.5 text-xs font-medium text-card"
+        >
+          AI ad creator
+        </Link>
         {starterPrompts.map((p) => (
           <button
             key={p}

@@ -8,7 +8,9 @@ import { CoachDock } from "./CoachDock";
 const nav = [
   { href: "/", label: "Today" },
   { href: "/campaigns", label: "Your ads" },
+  { href: "/create", label: "Create" },
   { href: "/coach", label: "Coach" },
+  { href: "/connect", label: "Facebook" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -42,12 +44,16 @@ function ShellInner({ children }: { children: React.ReactNode }) {
           </nav>
           <div className="rounded-xl border border-line bg-card p-3 text-xs text-ink-soft">
             <p className="font-medium text-ink">
-              {connection.status === "connected" ? "Live Facebook account" : "Practice account"}
+              {connection.status === "connected" && connection.adAccountId !== "act_practice"
+                ? "Live Facebook account"
+                : connection.adAccountId === "act_practice"
+                  ? "Practice Business Manager"
+                  : "Practice account"}
             </p>
             <p className="mt-1">
               {connection.status === "connected"
                 ? connection.adAccountName ?? connection.userName
-                : "Connect in Settings when you're ready."}
+                : "Connect under Facebook when you’re ready."}
             </p>
           </div>
         </aside>

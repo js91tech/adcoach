@@ -9,6 +9,11 @@ import {
   useState,
 } from "react";
 import { applyActions } from "@/lib/coach/apply";
+import {
+  fetchCampaigns,
+  getFacebookSession,
+  isPracticeToken,
+} from "@/lib/facebook/client";
 import { uid } from "@/lib/format";
 import { seedState } from "@/lib/seed";
 import type {
@@ -57,6 +62,18 @@ export function AdProvider({ children }: { children: React.ReactNode }) {
   });
 
   const refreshConnection = useCallback(async () => {
+    const fb = getFacebookSession();
+    if (fb) {
+      setConnection({
+        status: "connected",
+        configured: true,
+        userName: fb.userName,
+        adAccountId: fb.adAccount?.id,
+        adAccountName: fb.adAccount?.name,
+        currency: fb.adAccount?.currency,
+      });
+      return;
+    }
     try {
       const res = await fetch("/api/meta/status");
       const json = (await res.json()) as ConnectionState;
@@ -80,6 +97,8 @@ export function AdProvider({ children }: { children: React.ReactNode }) {
   const syncMeta = useCallback(
     async (actions: CoachAction[], campaigns: AppState["campaigns"]) => {
       if (connection.status !== "connected" || actions.length === 0) return;
+      const fb = getFacebookSession();
+      if (isPracticeToken(fb?.token) || fb?.token) return;
       try {
         const res = await fetch("/api/meta/campaigns", {
           method: "POST",
@@ -249,6 +268,17 @@ export function AdProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const importFromMeta = useCallback(async () => {
+    const fb = getFacebookSession();
+    if (isPracticeToken(fb?.token)) return null;
+    if (fb?.token && fb.adAccount) {
+      try {
+        const campaigns = await fetchCampaigns(fb.token, fb.adAccount.id, fb.adAccount.name);
+        setState((prev) => applyActions(prev, [{ type: "import_campaigns", campaigns }]));
+        return null;
+      } catch (e) {
+        return e instanceof Error ? e.message : "Could not load campaigns from Facebook.";
+      }
+    }
     try {
       const res = await fetch("/api/meta/campaigns");
       const json = (await res.json()) as { campaigns?: AppState["campaigns"]; error?: string };
