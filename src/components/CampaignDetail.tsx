@@ -7,7 +7,9 @@ import { ctaOptions, objectiveCopy, placementCopy, targetingSentence } from "@/l
 import { money, percent } from "@/lib/format";
 import { useAds } from "@/context/AdProvider";
 import type { Gender, Objective, Placement } from "@/lib/types";
+import { AdCanvas } from "./AdCanvas";
 import { MathCard } from "./QuantViews";
+import { SmartEnhanceToggle } from "./SmartEnhanceToggle";
 import { StatusPill } from "./StatusPill";
 
 const objectives: Objective[] = [
@@ -295,6 +297,14 @@ export function CampaignDetail({ id }: { id: string }) {
           facebook="Ad creative"
           help="Headline, the paragraph people actually read, and the button."
         />
+        <div className="mt-4">
+          <SmartEnhanceToggle
+            ad={campaign.ad}
+            business={campaign.business}
+            objective={campaign.objective}
+            onChange={(ad) => applyLocal([{ type: "update_ad", campaignIds: [id], ad }])}
+          />
+        </div>
         <div className="mt-4 grid gap-4">
           <label className="text-sm">
             Headline
@@ -302,7 +312,16 @@ export function CampaignDetail({ id }: { id: string }) {
               className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2"
               value={campaign.ad.headline}
               onChange={(e) =>
-                applyLocal([{ type: "update_ad", campaignIds: [id], ad: { headline: e.target.value } }])
+                applyLocal([
+                  {
+                    type: "update_ad",
+                    campaignIds: [id],
+                    ad: {
+                      headline: e.target.value,
+                      ...(campaign.ad.enhanceOn ? {} : { rawHeadline: e.target.value }),
+                    },
+                  },
+                ])
               }
             />
           </label>
@@ -313,7 +332,16 @@ export function CampaignDetail({ id }: { id: string }) {
               className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2"
               value={campaign.ad.primaryText}
               onChange={(e) =>
-                applyLocal([{ type: "update_ad", campaignIds: [id], ad: { primaryText: e.target.value } }])
+                applyLocal([
+                  {
+                    type: "update_ad",
+                    campaignIds: [id],
+                    ad: {
+                      primaryText: e.target.value,
+                      ...(campaign.ad.enhanceOn ? {} : { rawPrimaryText: e.target.value }),
+                    },
+                  },
+                ])
               }
             />
           </label>
@@ -347,13 +375,22 @@ export function CampaignDetail({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="mt-6 rounded-xl bg-paper-deep/70 p-5">
-          <p className="text-xs uppercase tracking-[0.14em] text-ink-soft">{campaign.ad.visualLabel}</p>
-          <p className="display mt-2 text-2xl">{campaign.ad.headline}</p>
-          <p className="mt-2 text-sm leading-6">{campaign.ad.primaryText}</p>
-          <span className="mt-4 inline-block rounded-full bg-forest px-4 py-1.5 text-sm text-card">
-            {campaign.ad.cta}
-          </span>
+        <div className="mt-6 overflow-hidden rounded-xl bg-paper-deep/70">
+          <AdCanvas
+            headline={campaign.ad.headline}
+            business={campaign.business}
+            visualLabel={campaign.ad.visualLabel}
+            cta={campaign.ad.cta}
+            photoUrl={campaign.ad.imageUrl}
+          />
+          <div className="p-5">
+            <p className="text-xs uppercase tracking-[0.14em] text-ink-soft">{campaign.ad.visualLabel}</p>
+            <p className="display mt-2 text-2xl">{campaign.ad.headline}</p>
+            <p className="mt-2 text-sm leading-6">{campaign.ad.primaryText}</p>
+            <span className="mt-4 inline-block rounded-full bg-forest px-4 py-1.5 text-sm text-card">
+              {campaign.ad.cta}
+            </span>
+          </div>
         </div>
       </section>
     </div>

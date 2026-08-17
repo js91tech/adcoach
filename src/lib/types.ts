@@ -32,6 +32,10 @@ export type AdCreative = {
   cta: string;
   destinationUrl: string;
   visualLabel: string;
+  imageUrl?: string;
+  enhanceOn?: boolean;
+  rawHeadline?: string;
+  rawPrimaryText?: string;
 };
 
 export type Campaign = {

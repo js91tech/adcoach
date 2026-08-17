@@ -6,9 +6,10 @@ Facebook ads for people who don’t know Facebook ads. You type what you want in
 
 - **Coach bar** on every screen: “pause the holiday ads,” “$20 a day to people nearby who like coffee,” “don’t spend more than $60 a day.”
 - **Campaigns in plain English**, with the Facebook term shown underneath so you can still talk to an agency later.
-- **Spend, targeting, goal, placements, and the ad itself** — editable without Ads Manager jargon.
+- **Smart text enhancer** on creatives: rewrite copy so the meaning lands on a phone.
+- **AI ad creator**: describe the offer; AdCoach writes the ad and generates the picture.
+- **Facebook portal** (`/connect`): Continue with Facebook on Facebook’s own login. No App Secret in `.env`.
 - **Safety cap** across every running ad.
-- **Meta-ready**: connect a Facebook ad account. Pause, resume, budget, and campaign drafts can go to the Marketing API. Demo mode works with no credentials.
 
 ## Run it
 
@@ -21,20 +22,15 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Connect Facebook (optional)
 
+AdCoach sends you to **Facebook’s own login**. It never asks for a Facebook password, and it does not need `META_APP_SECRET` in `.env`.
+
 1. Create a Business type app at [developers.facebook.com/apps](https://developers.facebook.com/apps).
 2. Add **Facebook Login** and **Marketing API**.
-3. Valid OAuth redirect URI: `http://localhost:3000/api/meta/callback`
-4. Copy `.env.example` to `.env.local` and fill in:
+3. Valid OAuth redirect URI: `http://localhost:3000/connect/callback` (and your live site’s `/connect/callback`).
+4. Open **Facebook** in AdCoach, paste the public **App ID**, then Continue with Facebook.
+5. Pick the ad account. Meta must review `ads_management` / `ads_read` before the app can manage ads for other people. Your own ad account can be used in development.
 
-```
-META_APP_ID=
-META_APP_SECRET=
-META_REDIRECT_URI=http://localhost:3000/api/meta/callback
-```
-
-5. Restart the dev server, then Settings → Connect Facebook.
-
-Meta must review `ads_management` / `ads_read` before the app can manage ads for other people. Your own ad account can be used in development.
+To practice without Facebook, use **Enter the practice Business Manager** on the same page.
 
 ## Optional: smarter Coach
 
