@@ -89,10 +89,9 @@ export function joinAnd(items: string[]): string {
 }
 
 export const starterPrompts = [
-  "Create an ad for my bakery, $25 a day, people nearby who like coffee",
+  "Show me the math — what's actually paying off?",
+  "If I move $20 a day from holiday ads to the bakery, what happens?",
   "Pause ads that aren't working",
-  "Only show the bakery ad to women 25–45 in Tampa",
-  "How much have I spent, and what's working?",
+  "Create an ad for my bakery, $25 a day, people nearby who like coffee",
   "Lower my daily spend — I'm getting nervous",
-  "Turn the holiday ads back on at $20 a day",
 ];

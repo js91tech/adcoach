@@ -19,7 +19,7 @@ import type {
   ConnectionState,
 } from "@/lib/types";
 
-const STORAGE_KEY = "adcoach-state-v1";
+const STORAGE_KEY = "adcoach-state-v2";
 
 type AdContextValue = {
   state: AppState;
@@ -157,6 +157,7 @@ export function AdProvider({ children }: { children: React.ReactNode }) {
           pendingActions: result.actions,
           applied: false,
           suggestions: result.suggestions,
+          math: result.math,
         };
 
         let campaignsForMeta = snapshot.campaigns;

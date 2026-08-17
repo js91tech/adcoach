@@ -2,55 +2,74 @@
 
 import Link from "next/link";
 import { coachTake } from "@/lib/coach/apply";
+import { analyzeCampaigns } from "@/lib/coach/quant";
 import { objectiveCopy, starterPrompts, targetingSentence } from "@/lib/copy";
-import { compactNumber, money, percent, todayLabel } from "@/lib/format";
+import { money, todayLabel } from "@/lib/format";
 import { useAds } from "@/context/AdProvider";
+import { DualShare, EfficiencyBar, VerdictPill } from "./QuantViews";
 import { StatusPill } from "./StatusPill";
 
 export function DashboardHome() {
   const { state, ask, connection } = useAds();
+  const quant = analyzeCampaigns(state.campaigns, state.account.dailyCap);
   const active = state.campaigns.filter((c) => c.status === "active");
-  const daily = active.reduce((s, c) => s + c.dailyBudget, 0);
-  const spent = state.campaigns.reduce((s, c) => s + c.stats.spent, 0);
-  const results = state.campaigns.reduce((s, c) => s + c.stats.results, 0);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <p className="text-sm text-ink-soft">{todayLabel()}</p>
-      <h1 className="display mt-1 text-4xl tracking-tight">Here’s how your ads look.</h1>
+      <h1 className="display mt-1 text-4xl tracking-tight">Here’s the scoreboard.</h1>
       <p className="mt-3 max-w-2xl text-ink-soft">
-        I’ll talk like a person you hired to run Facebook ads — not like Ads Manager. Type anything
-        in the bar below, or start with a prompt.
+        Coach doesn’t just “feel” what’s working. Cost per result, click-through versus a typical
+        local ad, and whether you’ve spent enough to trust the number.
       </p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
-          label="Set to spend today"
-          value={money(daily)}
+          label="Paced today"
+          value={money(quant.dailyPace)}
           hint={
             state.account.dailyCap
-              ? `Cap ${money(state.account.dailyCap)}`
-              : "No safety cap yet"
+              ? `${Math.round((quant.capUtilization ?? 0) * 100)}% of ${money(state.account.dailyCap)} cap`
+              : `${active.length} running`
           }
         />
-        <Stat label="Spent so far" value={money(spent)} hint={`${active.length} running now`} />
+        <Stat label="Spent so far" value={money(quant.totalSpent)} hint="All campaigns, all time" />
         <Stat
-          label="Results"
-          value={compactNumber(results)}
-          hint="Visits, signups, and sales combined"
+          label="Cost per result"
+          value={quant.blendedCpa != null ? money(quant.blendedCpa) : "—"}
+          hint="Blended across everything"
+        />
+        <Stat
+          label="Best efficiency"
+          value={
+            quant.campaigns.length
+              ? `${Math.max(...quant.campaigns.map((c) => c.efficiency))}/100`
+              : "—"
+          }
+          hint="100 = cheap results + healthy clicks"
         />
       </div>
 
       <section className="mt-8 rounded-2xl border border-line bg-card p-5">
         <p className="text-xs font-medium uppercase tracking-[0.14em] text-clay">Coach’s take</p>
-        <p className="mt-2 text-lg leading-7">{coachTake(state.campaigns)}</p>
+        <p className="mt-2 text-lg leading-7">{coachTake(state.campaigns, state.account.dailyCap)}</p>
+        {quant.reallocations.length ? (
+          <ul className="mt-4 space-y-2 text-sm text-ink-soft">
+            {quant.reallocations.map((m) => (
+              <li key={`${m.fromId}-${m.toId}`}>
+                Shift {money(m.dollars)}/day {m.fromName} → {m.toName} for about{" "}
+                {m.extraResults.toFixed(1)} more {m.resultLabel}/day.
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {connection.status === "demo" ? (
           <p className="mt-3 text-sm text-ink-soft">
-            This is a practice bakery account.{" "}
+            Practice bakery account.{" "}
             <Link href="/settings" className="text-forest underline-offset-2 hover:underline">
               Connect Facebook
             </Link>{" "}
-            when you want me to control a real ad account.
+            when you want this on a real ad account.
           </p>
         ) : null}
       </section>
@@ -68,34 +87,55 @@ export function DashboardHome() {
         ))}
       </div>
 
-      <h2 className="display mt-12 text-2xl">Your ads</h2>
+      <h2 className="display mt-12 text-2xl">Budget versus results</h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Gold is what you’re paying. Forest is what you’re getting. When gold is longer than forest,
+        that ad is overfunded.
+      </p>
       <ul className="mt-4 flex flex-col gap-3">
-        {state.campaigns.map((c) => (
-          <li key={c.id}>
-            <Link
-              href={`/campaigns/${c.id}`}
-              className="block rounded-2xl border border-line bg-card p-5 transition hover:border-forest/40"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{c.name}</h3>
-                    <StatusPill status={c.status} />
+        {quant.campaigns.map((row) => {
+          const c = state.campaigns.find((x) => x.id === row.id);
+          if (!c) return null;
+          return (
+            <li key={row.id}>
+              <Link
+                href={`/campaigns/${row.id}`}
+                className="block rounded-2xl border border-line bg-card p-5 transition hover:border-forest/40"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-medium">{row.name}</h3>
+                      <StatusPill status={row.status} />
+                      <VerdictPill verdict={row.verdict} />
+                    </div>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
+                      {row.why} Goal: {objectiveCopy[c.objective].label.toLowerCase()}.{" "}
+                      {targetingSentence(c.targeting)}
+                    </p>
                   </div>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
-                    Goal: {objectiveCopy[c.objective].label.toLowerCase()}. Shows to{" "}
-                    {targetingSentence(c.targeting)} {money(c.dailyBudget)}/day.
-                  </p>
+                  <div className="min-w-[11rem] text-right">
+                    <p className="text-sm">
+                      {row.cpa != null ? (
+                        <>
+                          <span className="font-medium">{money(row.cpa)}</span>
+                          <span className="text-ink-soft"> / result</span>
+                        </>
+                      ) : (
+                        <span className="text-ink-soft">No results yet</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-ink-soft">{money(row.dailyBudget)}/day</p>
+                  </div>
                 </div>
-                <p className="text-sm text-ink-soft">
-                  {c.stats.results} {c.stats.resultLabel}
-                  <span className="mx-2">·</span>
-                  {percent(c.stats.ctr)} clicked
-                </p>
-              </div>
-            </Link>
-          </li>
-        ))}
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <DualShare budgetShare={row.budgetShare} resultShare={row.resultShare} />
+                  <EfficiencyBar value={row.efficiency} />
+                </div>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

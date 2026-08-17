@@ -11,8 +11,8 @@ export default function CoachPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="display text-4xl tracking-tight">Talk to Coach</h1>
       <p className="mt-2 text-ink-soft">
-        You don’t have to know what an ad set is. Describe the business, the budget, and who should
-        see it. I’ll turn that into Facebook settings and explain every change.
+        Describe what you want in plain English. I’ll answer with the math — cost per result,
+        whether the sample is big enough, and what I’d move.
       </p>
       <div className="mt-6 flex flex-wrap gap-2">
         {starterPrompts.slice(0, 4).map((p) => (

@@ -1,5 +1,6 @@
 import { objectiveCopy, targetingSentence } from "../copy";
 import { money, uid } from "../format";
+import { analyzeCampaigns, applyQuantOptimize } from "./quant";
 import type {
   AdCreative,
   AppState,
@@ -9,6 +10,8 @@ import type {
   Placement,
   Targeting,
 } from "../types";
+
+export { coachTake } from "./quant";
 
 export function emptyStats(resultLabel: string): Campaign["stats"] {
   return {
@@ -50,20 +53,14 @@ function mergeTargeting(base: Targeting, patch: Partial<Targeting>): Targeting {
   };
 }
 
-export function isUnderperforming(c: Campaign): boolean {
-  if (c.status !== "active") return false;
-  if (c.stats.spent < 40) return false;
-  if (c.objective === "sales" && (c.stats.roas ?? 0) < 1) return true;
-  if (c.stats.ctr < 0.8 && c.stats.spent > 80) return true;
-  if (c.stats.results === 0 && c.stats.spent > 60) return true;
-  return false;
+export function isUnderperforming(c: Campaign, all: Campaign[] = [c]): boolean {
+  const row = analyzeCampaigns(all).campaigns.find((r) => r.id === c.id);
+  return row?.verdict === "pause";
 }
 
-export function isWinning(c: Campaign): boolean {
-  if (c.status !== "active") return false;
-  if (c.stats.roas && c.stats.roas >= 2) return true;
-  if (c.stats.ctr >= 1.4 && c.stats.results > 0) return true;
-  return false;
+export function isWinning(c: Campaign, all: Campaign[] = [c]): boolean {
+  const row = analyzeCampaigns(all).campaigns.find((r) => r.id === c.id);
+  return row?.verdict === "scale";
 }
 
 export function applyActions(state: AppState, actions: CoachAction[]): AppState {
@@ -132,15 +129,7 @@ export function applyActions(state: AppState, actions: CoachAction[]): AppState 
         );
         break;
       case "optimize": {
-        const losers = campaigns.filter(isUnderperforming).map((c) => c.id);
-        const winners = campaigns.filter(isWinning);
-        campaigns = campaigns.map((c) => {
-          if (losers.includes(c.id)) return { ...c, status: "paused" as const };
-          if (winners.some((w) => w.id === c.id)) {
-            return { ...c, dailyBudget: Math.round(c.dailyBudget * 1.15) };
-          }
-          return c;
-        });
+        campaigns = applyQuantOptimize(campaigns);
         break;
       }
       case "set_account_cap":
@@ -205,27 +194,6 @@ export function actionSummary(action: CoachAction, campaigns: Campaign[]): strin
     default:
       return "Updated your ads.";
   }
-}
-
-export function coachTake(campaigns: Campaign[]): string {
-  const active = campaigns.filter((c) => c.status === "active");
-  const losers = active.filter(isUnderperforming);
-  const winners = active.filter(isWinning);
-  const spend = active.reduce((s, c) => s + c.dailyBudget, 0);
-
-  if (active.length === 0) {
-    return "Nothing is running. Say the word and I'll draft an ad from a plain-English description of your business.";
-  }
-  if (losers.length && winners.length) {
-    return `${winners[0].name} is doing the job. ${losers[0].name} is spending without much to show for it — I'd pause it. Combined you're set to spend ${money(spend)} today.`;
-  }
-  if (losers.length) {
-    return `${losers[0].name} isn't earning its keep. I'd pause it or tighten who sees it before you spend another day at ${money(losers[0].dailyBudget)}.`;
-  }
-  if (winners.length) {
-    return `${winners[0].name} looks healthy. Keep it running. Daily pace is ${money(spend)}.`;
-  }
-  return `You have ${active.length} ad${active.length === 1 ? "" : "s"} on, about ${money(spend)} today. Nothing looks broken — I can still tighten targeting or copy if you want.`;
 }
 
 export function describeCampaignChange(before: Campaign, after: Campaign): string[] {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAds } from "@/context/AdProvider";
+import { MathCard } from "./QuantViews";
 
 export function CoachThread({ compact = false }: { compact?: boolean }) {
   const { state, ask, confirmPending, dismissPending, busy } = useAds();
@@ -24,6 +25,7 @@ export function CoachThread({ compact = false }: { compact?: boolean }) {
           }
         >
           <p className="whitespace-pre-wrap">{m.text}</p>
+          {m.math && m.role === "coach" ? <MathCard math={m.math} /> : null}
           {m.applied ? (
             <p className="mt-2 text-xs text-good">Done — your ads were updated.</p>
           ) : null}
@@ -65,7 +67,7 @@ export function CoachThread({ compact = false }: { compact?: boolean }) {
         </article>
       ))}
       {busy ? (
-        <p className="text-sm text-ink-soft">Coach is reading that the way a buyer would…</p>
+        <p className="text-sm text-ink-soft">Coach is running the numbers…</p>
       ) : null}
       <div ref={endRef} />
     </div>

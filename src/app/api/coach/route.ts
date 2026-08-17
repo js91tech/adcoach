@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { interpret } from "@/lib/coach/engine";
 import { actionSchemaForLlm } from "@/lib/coach/engine";
+import { analyzeCampaigns } from "@/lib/coach/quant";
 import type { CoachContext, CoachResult } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -19,7 +20,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const llm = await interpretWithLlm(message, context, key);
-    return Response.json(llm);
+    return Response.json({
+      ...llm,
+      math: llm.math ?? local.math,
+    } satisfies CoachResult);
   } catch {
     return Response.json(local);
   }
@@ -67,6 +71,7 @@ async function interpretWithLlm(
             businessName: context.account.businessName,
             connection: context.connection.status,
             campaigns: snapshot,
+            quantitative: analyzeCampaigns(context.campaigns, context.account.dailyCap),
           }),
         },
       ],
@@ -90,5 +95,6 @@ async function interpretWithLlm(
     confirmReason: parsed.confirmReason,
     actions: parsed.actions ?? [],
     suggestions: parsed.suggestions ?? [],
+    math: parsed.math,
   };
 }

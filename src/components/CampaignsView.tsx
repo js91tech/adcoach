@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { analyzeCampaigns } from "@/lib/coach/quant";
 import { objectiveCopy, targetingSentence } from "@/lib/copy";
 import { money, percent } from "@/lib/format";
 import { useAds } from "@/context/AdProvider";
+import { DualShare, EfficiencyBar, VerdictPill } from "./QuantViews";
 import { StatusPill } from "./StatusPill";
 
 export function CampaignsView() {
   const { state, ask } = useAds();
+  const quant = analyzeCampaigns(state.campaigns, state.account.dailyCap);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -29,18 +32,33 @@ export function CampaignsView() {
       </div>
 
       <ul className="mt-8 flex flex-col gap-4">
-        {state.campaigns.map((c) => (
+        {state.campaigns.map((c) => {
+          const row = quant.campaigns.find((q) => q.id === c.id);
+          return (
           <li key={c.id} className="rounded-2xl border border-line bg-card p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-medium">{c.name}</h2>
                   <StatusPill status={c.status} />
+                  {row ? <VerdictPill verdict={row.verdict} /> : null}
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">{c.business}</p>
               </div>
-              <p className="display text-2xl">{money(c.dailyBudget)}<span className="text-base text-ink-soft">/day</span></p>
+              <div className="text-right">
+                <p className="display text-2xl">{money(c.dailyBudget)}<span className="text-base text-ink-soft">/day</span></p>
+                <p className="text-sm text-ink-soft">
+                  {row?.cpa != null ? `${money(row.cpa)} per result` : "No results yet"}
+                </p>
+              </div>
             </div>
+
+            {row ? (
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <DualShare budgetShare={row.budgetShare} resultShare={row.resultShare} />
+                <EfficiencyBar value={row.efficiency} />
+              </div>
+            ) : null}
 
             <dl className="mt-5 grid gap-4 sm:grid-cols-3">
               <Field
@@ -83,13 +101,14 @@ export function CampaignsView() {
               <button
                 type="button"
                 className="rounded-lg border border-line px-3 py-1.5 text-sm"
-                onClick={() => void ask(`Explain ${c.name} in plain English`)}
+                onClick={() => void ask(`Show me the math for ${c.name}`)}
               >
-                Explain this
+                Show the math
               </button>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

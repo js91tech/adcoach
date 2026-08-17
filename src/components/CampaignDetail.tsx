@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { mathForCampaign } from "@/lib/coach/quant";
 import { ctaOptions, objectiveCopy, placementCopy, targetingSentence } from "@/lib/copy";
 import { money, percent } from "@/lib/format";
 import { useAds } from "@/context/AdProvider";
 import type { Gender, Objective, Placement } from "@/lib/types";
+import { MathCard } from "./QuantViews";
 import { StatusPill } from "./StatusPill";
 
 const objectives: Objective[] = [
@@ -67,11 +69,21 @@ export function CampaignDetail({ id }: { id: string }) {
         </button>
       </div>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
+      <section className="mt-8 grid gap-4 sm:grid-cols-4">
         <Mini label="Spent" value={money(campaign.stats.spent)} />
         <Mini label="Results" value={`${campaign.stats.results} ${campaign.stats.resultLabel}`} />
+        <Mini
+          label="Cost each"
+          value={
+            campaign.stats.results > 0
+              ? money(campaign.stats.spent / campaign.stats.results)
+              : "—"
+          }
+        />
         <Mini label="Clicked" value={percent(campaign.stats.ctr)} />
       </section>
+
+      <MathCard math={mathForCampaign(campaign, state.campaigns)} />
 
       <section className="mt-10 rounded-2xl border border-line bg-card p-6">
         <Header label="Goal" facebook="Campaign objective" help={objectiveCopy[campaign.objective].help} />

@@ -85,6 +85,19 @@ export type AdAccountOption = {
 
 export type ChatRole = "user" | "coach";
 
+export type QuantRow = {
+  label: string;
+  value: string;
+  tone?: "good" | "warn" | "bad" | "neutral";
+  hint?: string;
+};
+
+export type CoachMath = {
+  title: string;
+  summary: string;
+  rows: QuantRow[];
+};
+
 export type ChatMessage = {
   id: string;
   role: ChatRole;
@@ -95,6 +108,7 @@ export type ChatMessage = {
   pendingActions?: CoachAction[];
   applied?: boolean;
   suggestions?: string[];
+  math?: CoachMath;
 };
 
 export type CoachAction =
@@ -116,6 +130,7 @@ export type CoachResult = {
   confirmReason?: string;
   actions: CoachAction[];
   suggestions: string[];
+  math?: CoachMath;
 };
 
 export type AppState = {

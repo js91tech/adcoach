@@ -1,6 +1,12 @@
 import { objectiveCopy, targetingSentence } from "../copy";
-import { money } from "../format";
-import { coachTake, defaultCreative, isUnderperforming, isWinning } from "./apply";
+import { money, percent } from "../format";
+import { defaultCreative } from "./apply";
+import {
+  analyzeCampaigns,
+  mathForCampaign,
+  projectedResults,
+  verdictLabel,
+} from "./quant";
 import type {
   AdCreative,
   CoachAction,
@@ -34,6 +40,8 @@ const LIST = /\b(list|show (me )?(my )?ads|what ads|which campaigns)\b/i;
 const CAP = /\b(cap|don't (let me )?spend more than|limit|max(imum)? (daily )?spend|never spend more)\b/i;
 const CONNECT = /\b(connect (to )?facebook|log in to facebook|link (my )?ad account|meta)\b/i;
 const HELP = /^(help|hi|hello|hey|what can you do|how does this work)[?.!]?$/i;
+const WHATIF =
+  /\b(what if|if i (spend|move|put|shift)|reallocate|move \$?[\d,]+|show (me )?the math|compare|worth it|paying off|cost per)\b/i;
 
 function normalize(text: string): string {
   return text.replace(/\s+/g, " ").trim();
@@ -228,9 +236,11 @@ function suggestionsFor(intent: string): string[] {
     case "create":
       return ["Make the budget $20 a day", "Only show it to people nearby", "Change the goal to collect emails"];
     case "report":
-      return ["Pause ads that aren't working", "Put more money into what's working"];
+      return ["Pause ads that aren't working", "If I move $20 a day to what's working, what happens?"];
     case "optimize":
-      return ["Explain why you paused that", "Turn the holiday ads back on at $15 a day"];
+      return ["Explain why you paused that", "Show me the math"];
+    case "math":
+      return ["Do that reallocation", "Pause ads that aren't working"];
     default:
       return [
         "What's working right now?",
@@ -299,6 +309,10 @@ export function interpret(raw: string, ctx: CoachContext): CoachResult {
 
   if (OPTIMIZE.test(text) && !CREATE.test(text)) {
     return buildOptimize(ctx);
+  }
+
+  if (WHATIF.test(text) && !CREATE.test(text) && !PAUSE.test(text)) {
+    return buildWhatIf(text, ctx);
   }
 
   const matched = resolveCampaigns(text, ctx.campaigns);
@@ -526,46 +540,117 @@ function buildCreate(text: string, ctx: CoachContext): CoachResult {
 }
 
 function buildOptimize(ctx: CoachContext): CoachResult {
-  const losers = ctx.campaigns.filter(isUnderperforming);
-  const winners = ctx.campaigns.filter(isWinning);
-  if (!losers.length && !winners.length) {
+  const quant = analyzeCampaigns(ctx.campaigns, ctx.account.dailyCap);
+  if (!quant.reallocations.length && !quant.campaigns.some((r) => r.verdict === "pause" && r.status === "active")) {
     return {
-      reply: `Nothing looks like a dumpster fire. ${coachTake(ctx.campaigns)} If you want, I can still tighten targeting or cut spend.`,
+      reply: `${quant.headline} I wouldn't move money until a number actually breaks.`,
       needsConfirm: false,
       actions: [],
-      suggestions: ["Cut spend by a third", "Only show ads locally"],
+      suggestions: ["Show me the math", "Cut spend by a third"],
+      math: quant.math,
     };
   }
-  const parts: string[] = [];
-  if (losers.length) {
-    parts.push(
-      `I'd pause ${listNames(losers)}. ${losers.map((c) => `${c.name} has spent ${money(c.stats.spent)} for ${c.stats.results} ${c.stats.resultLabel}`).join(". ")}. That's not a good trade.`,
-    );
-  }
-  if (winners.length) {
-    parts.push(`I'd give ${listNames(winners)} about 15% more budget — it's actually working.`);
-  }
+  const lines = quant.reallocations.map((m) => {
+    const extra = m.extraResults >= 1 ? `~${m.extraResults.toFixed(1)} more ${m.resultLabel}/day` : "a small lift";
+    return `Move ${money(m.dollars)}/day from ${m.fromName} → ${m.toName} (${extra}, after a 15% efficiency haircut).`;
+  });
+  const pauses = quant.campaigns.filter((r) => r.verdict === "pause" && r.status === "active");
+  const pauseLine = pauses.length
+    ? `Pause ${pauses.map((p) => p.name).join(", ")} — ${pauses.map((p) => p.why).join(" ")}`
+    : "";
   return {
-    reply: `${parts.join(" ")} That's what a buyer would do at the end of the week: starve the losers, feed the winners.`,
+    reply: `${quant.headline}\n\n${[pauseLine, ...lines].filter(Boolean).join("\n")}\n\nThat's quantitative: starve high cost-per-result, feed low cost-per-result. I don't double budgets just because CTR looks pretty.`,
     needsConfirm: true,
-    confirmReason: "I'll pause weak ads and raise spend on the strong ones.",
+    confirmReason: "I'll pause the leaks and shift daily budget toward the cheaper results.",
     actions: [{ type: "optimize" }],
     suggestions: suggestionsFor("optimize"),
+    math: quant.math,
   };
 }
 
 function buildReport(ctx: CoachContext): CoachResult {
-  const spent = ctx.campaigns.reduce((s, c) => s + c.stats.spent, 0);
-  const daily = ctx.campaigns.filter((c) => c.status === "active").reduce((s, c) => s + c.dailyBudget, 0);
-  const lines = ctx.campaigns.map((c) => {
-    const tag = c.status === "active" ? "on" : c.status;
-    return `• ${c.name} (${tag}): spent ${money(c.stats.spent)}, ${c.stats.results} ${c.stats.resultLabel}, ${c.stats.ctr.toFixed(1)}% of people who saw it clicked. Goal was ${objectiveCopy[c.objective].label.toLowerCase()}.`;
+  const quant = analyzeCampaigns(ctx.campaigns, ctx.account.dailyCap);
+  const lines = quant.campaigns.map((r) => {
+    const cpa = r.cpa != null ? `${money(r.cpa)} each` : "no results";
+    return `• ${r.name}: ${cpa}. ${percent(r.ctr)} clicked. ${r.efficiency}/100 efficiency. ${verdictLabel(r.verdict)}. ${r.why}`;
   });
+  const cap =
+    ctx.account.dailyCap != null
+      ? ` Safety cap ${money(ctx.account.dailyCap)}/day (${quant.capUtilization != null ? percent(quant.capUtilization * 100, 0) : "—"} used).`
+      : "";
   return {
-    reply: `Lifetime in this account: ${money(spent)} spent. If nothing changes, today is paced at ${money(daily)}.\n\n${lines.join("\n")}\n\n${coachTake(ctx.campaigns)}${ctx.account.dailyCap ? ` Your safety cap is ${money(ctx.account.dailyCap)}/day.` : ""}`,
+    reply: `${quant.headline}${cap}\n\n${lines.join("\n")}`,
     needsConfirm: false,
     actions: [],
     suggestions: suggestionsFor("report"),
+    math: quant.math,
+  };
+}
+
+function buildWhatIf(text: string, ctx: CoachContext): CoachResult {
+  const quant = analyzeCampaigns(ctx.campaigns, ctx.account.dailyCap);
+  const moneyFound = extractMoney(text);
+  const matched = resolveCampaigns(text, ctx.campaigns);
+  const doIt = /\b(do it|go ahead|make that change|yes,? shift|reallocate now)\b/i.test(text);
+
+  if (/\bmove|shift|from .+ to\b/i.test(text) && moneyFound && matched.length >= 1) {
+    const amount = toDaily(moneyFound.amount, moneyFound.period === "none" ? "day" : moneyFound.period);
+    const donor =
+      matched.find((c) => /from/i.test(text) && text.toLowerCase().includes(c.name.split(" ")[0].toLowerCase())) ??
+      matched.find((c) => c.status === "paused" || quant.campaigns.find((q) => q.id === c.id)?.verdict === "pause") ??
+      ctx.campaigns.find((c) => c.id === "camp_gifts") ??
+      matched[0];
+    const taker =
+      matched.find((c) => c.id !== donor.id) ??
+      ctx.campaigns.find((c) => quant.campaigns.find((q) => q.id === c.id)?.verdict === "scale") ??
+      ctx.campaigns.find((c) => c.id === "camp_bakery") ??
+      ctx.campaigns[0];
+    const forecast = projectedResults(taker, taker.dailyBudget + amount);
+    const actions: CoachAction[] = [
+      { type: "update_budget", campaignIds: [donor.id], dailyBudget: Math.max(1, donor.dailyBudget - amount) },
+      { type: "update_budget", campaignIds: [taker.id], dailyBudget: taker.dailyBudget + amount },
+    ];
+    return {
+      reply: `If we move ${money(amount)}/day from ${donor.name} to ${taker.name}, ${taker.name} is paced at about ${forecast.perDay.toFixed(1)} ${taker.stats.resultLabel}/day. ${forecast.note}\n\n${donor.name} currently costs ${quant.campaigns.find((q) => q.id === donor.id)?.cpa != null ? money(quant.campaigns.find((q) => q.id === donor.id)!.cpa!) : "∞"} per result; ${taker.name} costs ${quant.campaigns.find((q) => q.id === taker.id)?.cpa != null ? money(quant.campaigns.find((q) => q.id === taker.id)!.cpa!) : "—"}.`,
+      needsConfirm: true,
+      confirmReason: `Shift ${money(amount)}/day ${donor.name} → ${taker.name}?`,
+      actions: doIt ? actions : actions,
+      suggestions: suggestionsFor("math"),
+      math: quant.math,
+    };
+  }
+
+  if (moneyFound && matched.length === 1) {
+    const c = matched[0];
+    const daily = toDaily(moneyFound.amount, moneyFound.period === "none" ? "day" : moneyFound.period);
+    const forecast = projectedResults(c, daily);
+    return {
+      reply: `At ${money(daily)}/day, ${c.name} projects about ${forecast.perDay.toFixed(1)} ${c.stats.resultLabel} per day (today it's ${c.dailyBudget > 0 && c.stats.results ? ((c.stats.results / Math.max(c.stats.spent, 1)) * c.dailyBudget).toFixed(1) : "n/a"}). ${forecast.note}`,
+      needsConfirm: daily !== c.dailyBudget,
+      confirmReason: daily !== c.dailyBudget ? `Set ${c.name} to ${money(daily)}/day?` : undefined,
+      actions: daily !== c.dailyBudget ? [{ type: "update_budget", campaignIds: [c.id], dailyBudget: daily }] : [],
+      suggestions: suggestionsFor("math"),
+      math: mathForCampaign(c, ctx.campaigns),
+    };
+  }
+
+  if (matched.length === 1) {
+    const c = matched[0];
+    return {
+      reply: mathForCampaign(c, ctx.campaigns).summary,
+      needsConfirm: false,
+      actions: [],
+      suggestions: suggestionsFor("math"),
+      math: mathForCampaign(c, ctx.campaigns),
+    };
+  }
+
+  return {
+    reply: `${quant.headline}\n\nAsk me something like “if I move $20 a day from the holiday ads to the bakery, what happens?”`,
+    needsConfirm: false,
+    actions: [],
+    suggestions: suggestionsFor("math"),
+    math: quant.math,
   };
 }
 
@@ -590,8 +675,11 @@ export const actionSchemaForLlm = `{
 
 Rules:
 - Speak like a calm senior media buyer. No Facebook jargon unless you immediately define it.
+- Always show the math: cost per result, CTR vs a typical local-business benchmark, budget share vs result share, and whether the sample is big enough to trust.
 - Never delete ads. Pause instead.
+- Do not scale spend on ads with thin data (low spend or low impressions).
 - Confirm new campaigns and any daily budget >= 200 or more than 2x current.
 - Use existing campaign ids when editing.
 - If the user is vague, ask a short question and return no actions.
-- If they describe a business and a budget, create a campaign.`;
+- If they describe a business and a budget, create a campaign.
+- Include a "math" object: { "title": "The math", "summary": "", "rows": [{ "label": "", "value": "", "tone": "good|warn|bad|neutral", "hint": "" }] }`;

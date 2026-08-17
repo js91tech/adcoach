@@ -117,11 +117,11 @@ export const seedState: AppState = {
     {
       id: "msg_welcome",
       role: "coach",
-      text: "I'm your ad coach. Talk to me the way you'd talk to a person who runs Facebook ads for a living — no jargon needed.\n\nYou can say things like “pause the holiday ads,” “spend $20 a day promoting the workshop to people nearby,” or “what's actually working?”\n\nYou're in demo mode with a bakery account so you can poke around. Connect Facebook in Settings when you want this to control a real ad account.",
+      text: "I'm your ad coach. I run the numbers the way a media buyer would — cost per result, click-through versus a typical local ad, and whether you've spent enough to trust the call.\n\nTry “show me the math,” “if I move $20 a day to the bakery, what happens?,” or just describe a new ad in plain English.",
       createdAt: new Date().toISOString(),
       suggestions: [
-        "What's working right now?",
-        "Create a new ad for weekend brunch",
+        "Show me the math",
+        "If I move $20 a day from holiday ads to the bakery, what happens?",
         "Don't let me spend more than $60 a day",
       ],
     },

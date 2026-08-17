@@ -57,7 +57,7 @@ export function CoachDock() {
             ref={inputRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Tell Coach what you want — “pause the holiday ads,” “$20 a day to people nearby”…"
+            placeholder="Ask with numbers — “show me the math,” “move $20/day to the bakery”…"
             className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-ink-soft/70"
             disabled={busy}
           />
