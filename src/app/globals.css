@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f3eee4;
+  --paper-deep: #e7dfd0;
+  --ink: #1f1a16;
+  --ink-soft: #5c534c;
+  --forest: #1f5c4a;
+  --forest-deep: #163f34;
+  --clay: #c45c26;
+  --gold: #c4a574;
+  --card: #fffbf5;
+  --line: #e4d9c8;
+  --good: #2f7d57;
+  --warn: #b45309;
+  --bad: #a33b2b;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-forest: var(--forest);
+  --color-forest-deep: var(--forest-deep);
+  --color-clay: var(--clay);
+  --color-gold: var(--gold);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-sans: var(--font-outfit);
+  --font-display: var(--font-fraunces);
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) transparent;
+}

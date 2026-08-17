@@ -1,0 +1,108 @@
+"use client";
+
+import Link from "next/link";
+import { objectiveCopy, targetingSentence } from "@/lib/copy";
+import { money, percent } from "@/lib/format";
+import { useAds } from "@/context/AdProvider";
+import { StatusPill } from "./StatusPill";
+
+export function CampaignsView() {
+  const { state, ask } = useAds();
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="display text-4xl tracking-tight">Your ads</h1>
+          <p className="mt-2 text-ink-soft">
+            Each card is one campaign. Facebook splits these into campaigns, ad sets, and ads — I
+            keep it as one thing you can understand.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void ask("Create a new ad for my business, $20 a day, people nearby")}
+          className="rounded-xl bg-forest px-4 py-2 text-sm font-medium text-card"
+        >
+          New ad
+        </button>
+      </div>
+
+      <ul className="mt-8 flex flex-col gap-4">
+        {state.campaigns.map((c) => (
+          <li key={c.id} className="rounded-2xl border border-line bg-card p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-medium">{c.name}</h2>
+                  <StatusPill status={c.status} />
+                </div>
+                <p className="mt-1 text-sm text-ink-soft">{c.business}</p>
+              </div>
+              <p className="display text-2xl">{money(c.dailyBudget)}<span className="text-base text-ink-soft">/day</span></p>
+            </div>
+
+            <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+              <Field
+                label="Goal"
+                facebook={objectiveCopy[c.objective].facebook}
+                value={objectiveCopy[c.objective].label}
+              />
+              <Field label="Who sees it" facebook="Targeting" value={targetingSentence(c.targeting)} />
+              <Field
+                label="Results"
+                facebook="Reporting"
+                value={`${c.stats.results} ${c.stats.resultLabel} · ${percent(c.stats.ctr)} clicked · ${money(c.stats.spent)} spent`}
+              />
+            </dl>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link
+                href={`/campaigns/${c.id}`}
+                className="rounded-lg border border-line px-3 py-1.5 text-sm hover:border-forest"
+              >
+                Open settings
+              </Link>
+              {c.status === "active" ? (
+                <button
+                  type="button"
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm"
+                  onClick={() => void ask(`Pause ${c.name}`)}
+                >
+                  Pause
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm"
+                  onClick={() => void ask(`Turn ${c.name} back on`)}
+                >
+                  Turn on
+                </button>
+              )}
+              <button
+                type="button"
+                className="rounded-lg border border-line px-3 py-1.5 text-sm"
+                onClick={() => void ask(`Explain ${c.name} in plain English`)}
+              >
+                Explain this
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Field({ label, facebook, value }: { label: string; facebook: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-[0.14em] text-ink-soft">
+        {label}
+        <span className="ml-2 font-normal normal-case tracking-normal">Facebook: {facebook}</span>
+      </dt>
+      <dd className="mt-1 text-sm leading-6">{value}</dd>
+    </div>
+  );
+}
